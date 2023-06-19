@@ -12,13 +12,21 @@ const progress = $('#progress');
 const nextBtn = $('.btn-next');
 const prevBtn = $('.btn-prev');
 const randomBtn = $('.btn-random');
-
+const repeateBtn = $('.btn-repeat');
+const playList = $(".playlist");
+const MUSIC_PLAYER = 'Music player';
 var screenWidth = window.innerWidth;
 const apps = {
+    isRepeate: false,
     isShuffled: false,
     isPlaying: false,
     currentIndex: 0,
     songs: songs,
+    config: JSON.parse(localStorage.getItem(MUSIC_PLAYER)) || {},
+    setConFig: function (key, value) {
+        this.config[key] = value;
+        localStorage.setItem(MUSIC_PLAYER, JSON.stringify(this.config));
+    },
     defineProperties: function () {
         Object.defineProperty(this, "currentSong", {
             get: function () {
@@ -28,9 +36,9 @@ const apps = {
     },
 
     render: function () {
-        const htmls = this.songs.map((song) => {
+        const htmls = this.songs.map((song, index) => {
             return `
-        <div class="song">
+        <div id="${index}" class="song ${index === this.currentIndex ? 'active' : ''}">
             <div class="thumb"
                 style="background-image: url('${song.image}')">
             </div>
@@ -44,7 +52,7 @@ const apps = {
         </div>
     `;
         });
-        $(".playlist").innerHTML = htmls.join("");
+        playList.innerHTML = htmls.join("");
     },
 
     handleEvents: function () {
@@ -92,19 +100,22 @@ const apps = {
 
         var isMouseDown = false;
         var isMouseUp = false;
-
+        // audio real time
         audio.ontimeupdate = function () {
             if (audio.duration && !isMouseDown) {
                 const statusPercent = Math.floor(audio.currentTime / audio.duration * 100);
                 progress.value = statusPercent;
             }
-
-            // next song automatically
-            if (audio.currentTime === audio.duration) {
-                _this.nextSong();
-                audio.play();
-            }
         }
+
+        // ended audio
+        audio.onended = function () {
+            if (!_this.isRepeate) {
+                _this.nextSong();
+            }
+            audio.play();
+        }
+
         // handle when rewind
         if (screenWidth <= 450) {
             progress.addEventListener('touchstart', function (e) {
@@ -155,30 +166,65 @@ const apps = {
             // }
         }
 
-
         // handle shuffled song
-
         randomBtn.onclick = function () {
-            if (!_this.isShuffled) {
-                this.classList.add('active');
-                _this.isShuffled = true;
-            } else {
-                this.classList.remove('active');
-                _this.isShuffled = false;
+            _this.isShuffled = !_this.isShuffled;
+            _this.setConFig('isShuffled', _this.isShuffled);
+            if (_this.isShuffled) {
+                _this.isRepeate = false;
+                _this.setConFig('isRepeate', _this.isRepeate);
+                repeateBtn.classList.remove('active');
             }
+            this.classList.toggle('active', _this.isShuffled);
         }
 
+        // handle repeate song
+        repeateBtn.onclick = function () {
+            _this.isRepeate = !_this.isRepeate;
+            _this.setConFig('isRepeate', _this.isRepeate);
+            if (_this.isRepeate) {
+                _this.isShuffled = false;
+                _this.setConFig('isShuffled', _this.isShuffled);
+                randomBtn.classList.remove('active');
+            }
+            this.classList.toggle('active', _this.isRepeate);
+        }
 
-
+        // handle click playlist
+        playList.onclick = function (event) {
+            const songElement = event.target.closest('.song:not(.active)');
+            if (songElement || event.target.closest('.option')) {
+                if (songElement) {
+                    _this.currentIndex = parseInt(songElement.getAttribute('id'));
+                    _this.loadCurrentSong();
+                    audio.play();
+                }
+            }
+        }
 
     },
 
     loadCurrentSong: function () {
         //operating
-
         heading.textContent = this.currentSong.name;
         cdThumbNail.style.backgroundImage = `url('${this.currentSong.image}')`;
         audio.src = this.currentSong.path;
+        if ($('.song.active')) {
+            $('.song.active').classList.remove('active');
+            document.getElementById(`${this.currentIndex}`).classList.add('active');
+            this.scrollActiveSong();
+        }
+        this.setConFig('currentIndex', this.currentIndex);
+
+    },
+
+    scrollActiveSong: function () {
+        setTimeout(() => {
+            $('.song.active').scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+            })
+        }, 200)
     },
 
     nextSong: function () {
@@ -231,12 +277,26 @@ const apps = {
         return randomNumber;
     },
 
+    configFunction: function () {
+        const config = this.config;
+        this.isRepeate = config.isRepeate;
+        this.isShuffled = config.isShuffled;
+        this.currentIndex = config.currentIndex;
+        if (this.isRepeate) {
+            repeateBtn.classList.add('active');
+        }
+
+        if (this.isShuffled) {
+            randomBtn.classList.add('active');
+        }
+    },
+
     start: function () {
+        this.configFunction();
         this.defineProperties();
         this.handleEvents();
         this.loadCurrentSong();
         this.render();
     },
 };
-
 apps.start();
