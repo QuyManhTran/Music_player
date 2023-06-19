@@ -11,12 +11,14 @@ const playBtn = $(".btn-toggle-play");
 const progress = $('#progress');
 const nextBtn = $('.btn-next');
 const prevBtn = $('.btn-prev');
+const randomBtn = $('.btn-random');
+
 var screenWidth = window.innerWidth;
 const apps = {
+    isShuffled: false,
     isPlaying: false,
     currentIndex: 0,
     songs: songs,
-
     defineProperties: function () {
         Object.defineProperty(this, "currentSong", {
             get: function () {
@@ -96,6 +98,12 @@ const apps = {
                 const statusPercent = Math.floor(audio.currentTime / audio.duration * 100);
                 progress.value = statusPercent;
             }
+
+            // next song automatically
+            if (audio.currentTime === audio.duration) {
+                _this.nextSong();
+                audio.play();
+            }
         }
         // handle when rewind
         if (screenWidth <= 450) {
@@ -132,18 +140,36 @@ const apps = {
         // hanlde next song
         nextBtn.onclick = function () {
             _this.nextSong();
-            if (_this.isPlaying) {
-                audio.play();
-            }
+            // if (_this.isPlaying) {
+            progress.value = 0;
+            audio.play();
+            // }
         }
 
         // handle previous song
         prevBtn.onclick = function () {
             _this.previousSong();
-            if (_this.isPlaying) {
-                audio.play();
+            // if (_this.isPlaying) {
+            progress.value = 0;
+            audio.play();
+            // }
+        }
+
+
+        // handle shuffled song
+
+        randomBtn.onclick = function () {
+            if (!_this.isShuffled) {
+                this.classList.add('active');
+                _this.isShuffled = true;
+            } else {
+                this.classList.remove('active');
+                _this.isShuffled = false;
             }
         }
+
+
+
 
     },
 
@@ -156,21 +182,53 @@ const apps = {
     },
 
     nextSong: function () {
-        if (this.currentIndex === this.songs.length - 1) {
-            this.currentIndex = 0;
+        if (this.isShuffled) {
+            const randomNumber = this.shuffledSong();
+            if (randomNumber === this.currentIndex) {
+                if (this.currentIndex === this.songs.length - 1) {
+                    this.currentIndex = 0;
+                } else {
+                    this.currentIndex++;
+                }
+            } else {
+                this.currentIndex = randomNumber;
+            }
         } else {
-            this.currentIndex++;
+            if (this.currentIndex === this.songs.length - 1) {
+                this.currentIndex = 0;
+            } else {
+                this.currentIndex++;
+            }
         }
         this.loadCurrentSong();
     },
 
     previousSong: function () {
-        if (this.currentIndex === 0) {
-            this.currentIndex = this.songs.length - 1;
-        } else {
-            this.currentIndex--;
+        if (this.isShuffled) {
+            const randomNumber = this.shuffledSong();
+            if (randomNumber === this.currentIndex) {
+                if (this.currentIndex === 0) {
+                    this.currentIndex = this.songs.length - 1;
+                } else {
+                    this.currentIndex--;
+                }
+            } else {
+                this.currentIndex = randomNumber;
+            }
+        }
+        else {
+            if (this.currentIndex === 0) {
+                this.currentIndex = this.songs.length - 1;
+            } else {
+                this.currentIndex--;
+            }
         }
         this.loadCurrentSong();
+    },
+
+    shuffledSong: function () {
+        const randomNumber = Math.floor(Math.random() * (this.songs.length));
+        return randomNumber;
     },
 
     start: function () {
